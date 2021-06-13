@@ -1,3 +1,9 @@
+"""
+@author: simon.lambin
+
+Package definition for rez_scoop
+"""
+
 # pylint: skip-file
 name = "rez_scoop"
 timestamp = 0

@@ -1,5 +1,6 @@
 """
 @author: simon.lambin
+
 A simple logger shortcut / wrapper.
 Uses
 https://logzero.readthedocs.io/

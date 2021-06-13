@@ -1,3 +1,9 @@
+"""
+@author: simon.lambin
+
+Build script called by rez-build
+"""
+
 import shutil
 import sys
 import os
