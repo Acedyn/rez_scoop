@@ -6,6 +6,9 @@ and store its metadata
 """
 
 import subprocess
+import os
+import json
+from typing import Dict
 
 from rez_scoop.utils.log import logger
 
@@ -18,6 +21,8 @@ class ScoopPackage:
     def __init__(self, package_name: str) -> None:
         self.name = package_name
         self.installed = False
+        self.scoop_root = os.getenv("SCOOP", f"{os.getenv('HOME')}/scoop")
+        self._metadata = {}
 
     def install(self) -> None:
         """
@@ -62,3 +67,32 @@ class ScoopPackage:
         # Wait for the install to be completed
         p_install.wait()
         self.installed = True
+
+    @property
+    def metadata(self) -> Dict:
+        """
+        Get the scoop pachage's json and parse its data
+        """
+        # Lazy load the metadata
+        if self._metadata != {}:
+            return self._metadata
+
+        # Find wich bucket the package belong to
+        buckets = os.listdir(os.path.join(self.scoop_root, "buckets"))
+        found_metadata = False
+        for bucket in buckets:
+            metadata_file = os.path.join(str(buckets), bucket, f"{self.name}.json")
+            if os.path.isfile(metadata_file):
+                with open(metadata_file) as file:
+                    self._metadata_json = json.load(file)
+                found_metadata = True
+                break
+
+        if not found_metadata:
+            logger.error("Could not find package metadata")
+            self._metadata = {}
+            return self._metadata
+
+        print(self._metadata)
+
+        return self._metadata
