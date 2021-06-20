@@ -116,7 +116,7 @@ class ScoopPackage:
         if hasattr(self.metadata, "version"):
             return self.metadata["description"]
         else:
-            return "No description provided"
+            return "0.0.0"
 
     @property
     def url(self) -> str:
@@ -130,17 +130,81 @@ class ScoopPackage:
         return self.metadata["architecture"][arch]["url"]
 
     @property
-    def requirements(self) -> List[str]:
+    def requires(self) -> List[str]:
         if "depends" not in self.metadata:
             return []
 
+        # The depends entry can be a list or a string
         if not isinstance(self.metadata["depends"], (tuple, list)):
             return [self.metadata["depends"]]
         else:
             return self.metadata["depends"]
 
     @property
-    def variants(self):
+    def variants(self) -> List[List[str]]:
         return [
             [f"platform-{platform_.name}", "arch-{platform_.arch}", "os-{platform_.os}"]
         ]
+
+    @property
+    def binaries(self) -> List[List[str]]:
+        if "bin" not in self.metadata:
+            return []
+
+        # The bin entry can be a list or a string
+        if isinstance(self.metadata["bin"], (tuple, list)):
+            binaries_entries = self.metadata["bin"]
+        else:
+            binaries_entries = [self.metadata["bin"]]
+
+        binaries = []
+        for binaries_entry in binaries_entries:
+            # Each bin can be just a string or a list
+            # If they are a list they define a path, an alias, and arguments
+            if not isinstance(binaries_entry, (tuple, list)):
+                binaries_entry = [binaries_entry]
+
+            filename = os.path.join(binaries_entry[0])
+            alias = None
+            args = []
+
+            if len(binaries_entry) <= 2:
+                alias = binaries_entry[1]
+
+            if len(binaries_entry) <= 3:
+                args = binaries_entry[2]
+
+            binaries.append((os.path.join(self.path, filename), alias, args))
+
+        return binaries
+
+    @property
+    def environments(self) -> List[List[str]]:
+
+        environments = []
+
+        # Parse the env_add_path field
+        if "env_add_path" not in self.metadata:
+            env_add = []
+        elif isinstance(self.metadata["env_add_path"], (tuple, list)):
+            env_add = self.metadata["env_add_path"]
+        else:
+            env_add = [self.metadata["env_add_path"]]
+
+        for environment in env_add:
+            environments.append(("PATH", os.path.join(self.path, environment)))
+
+        # Parse the env_set field
+        if "env_set" not in self.metadata:
+            env_set = []
+        elif isinstance(self.metadata["env_set"], (tuple, list)):
+            env_set = self.metadata["env_set"]
+        else:
+            env_set = [self.metadata["env_set"]]
+
+        for environment_name, environment_value in env_set:
+            environments.append(
+                (environment_name, environment_value.replace("$dir", self.path))
+            )
+
+        return environments
