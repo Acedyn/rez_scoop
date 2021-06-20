@@ -1,14 +1,16 @@
 """
 @author: simon.lambin
 
-CLass definition that can be used to install scoop packages and parse
+CLass definition that can be used to install scoop packages, parse
 and store its metadata
 """
 
 import subprocess
 import os
 import json
-from typing import Dict
+from typing import Dict, List
+
+from rez.utils.platform_ import platform_
 
 from rez_scoop.utils.log import logger
 
@@ -21,13 +23,19 @@ class ScoopPackage:
     def __init__(self, package_name: str) -> None:
         self.name = package_name
         self.installed = False
-        self.scoop_root = os.getenv("SCOOP", f"{os.getenv('HOME')}/scoop")
-        self._metadata = {}
+        self.scoop_root = os.getenv("SCOOP") or f"{os.getenv('HOME')}{os.sep}scoop"
+        self.path = os.path.join(self.scoop_root, "apps", self.name)
+        self._metadata = None
 
     def install(self) -> None:
         """
         Install the package calling scoop throught a subprocess
         """
+
+        if self.installed:
+            logger.info("Scoop package already installed")
+            return
+
         # Check if the package is already installed
         p_search = subprocess.Popen(
             f"powershell -command scoop list {self.name}",
@@ -74,25 +82,65 @@ class ScoopPackage:
         Get the scoop pachage's json and parse its data
         """
         # Lazy load the metadata
-        if self._metadata != {}:
+        if self._metadata is not None:
             return self._metadata
 
+        # Initialize metadata
+        self._metadata = {}
         # Find wich bucket the package belong to
         buckets = os.listdir(os.path.join(self.scoop_root, "buckets"))
-        found_metadata = False
+        metadata_json = None
         for bucket in buckets:
             metadata_file = os.path.join(str(buckets), bucket, f"{self.name}.json")
             if os.path.isfile(metadata_file):
                 with open(metadata_file) as file:
-                    self._metadata_json = json.load(file)
-                found_metadata = True
-                break
+                    metadata_json = json.load(file)
+                    break
 
-        if not found_metadata:
+        if metadata_json is None:
             logger.error("Could not find package metadata")
-            self._metadata = {}
             return self._metadata
 
-        print(self._metadata)
-
+        self._metadata = metadata_json
         return self._metadata
+
+    @property
+    def description(self) -> str:
+        if hasattr(self.metadata, "description"):
+            return self.metadata["description"]
+        else:
+            return "No description provided"
+
+    @property
+    def version(self) -> str:
+        if hasattr(self.metadata, "version"):
+            return self.metadata["description"]
+        else:
+            return "No description provided"
+
+    @property
+    def url(self) -> str:
+        if "url" in self.metadata:
+            return self.metadata["url"]
+
+        arch = {
+            "AMD64": "64bit",
+            "i686": "32bit",
+        }[platform_.arch]
+        return self.metadata["architecture"][arch]["url"]
+
+    @property
+    def requirements(self) -> List[str]:
+        if "depends" not in self.metadata:
+            return []
+
+        if not isinstance(self.metadata["depends"], (tuple, list)):
+            return [self.metadata["depends"]]
+        else:
+            return self.metadata["depends"]
+
+    @property
+    def variants(self):
+        return [
+            [f"platform-{platform_.name}", "arch-{platform_.arch}", "os-{platform_.os}"]
+        ]
