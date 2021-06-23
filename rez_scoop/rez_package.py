@@ -51,3 +51,10 @@ class RezPackage:
             commands.add("pass")
 
         self.maker.commands = "\n".join(commands)
+
+    def install(self) -> None:
+        """
+        Install the package localy by creating a packages.py file and copying the required files
+        """
+
+        logger.warning("The rez package installation of not implemented yet")
