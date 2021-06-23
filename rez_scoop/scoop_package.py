@@ -67,9 +67,9 @@ class ScoopPackage:
 
         # Parse the output of the scoop install command
         for line in iter(p_install.stdout.readline, ""):
-            if f"Couldn't find manifest for '{self.name}'":
+            if f"Couldn't find manifest for '{self.name}'" in line:
                 logger.error("Scoop package does not exist")
-                p_install.wait()
+                p_install.kill()
                 return
 
         # Wait for the install to be completed
@@ -88,10 +88,11 @@ class ScoopPackage:
         # Initialize metadata
         self._metadata = {}
         # Find wich bucket the package belong to
-        buckets = os.listdir(os.path.join(self.scoop_root, "buckets"))
+        bucket_dir = os.path.join(self.scoop_root, "buckets")
+        buckets = os.listdir(bucket_dir)
         metadata_json = None
         for bucket in buckets:
-            metadata_file = os.path.join(str(buckets), bucket, f"{self.name}.json")
+            metadata_file = os.path.join(bucket_dir, bucket, "bucket", f"{self.name}.json")
             if os.path.isfile(metadata_file):
                 with open(metadata_file) as file:
                     metadata_json = json.load(file)
@@ -106,32 +107,32 @@ class ScoopPackage:
 
     @property
     def description(self) -> str:
-        if hasattr(self.metadata, "description"):
+        if "description" in self.metadata.keys():
             return self.metadata["description"]
         else:
             return "No description provided"
 
     @property
     def version(self) -> str:
-        if hasattr(self.metadata, "version"):
-            return self.metadata["description"]
+        if "version" in self.metadata.keys():
+            return self.metadata["version"]
         else:
             return "0.0.0"
 
     @property
     def url(self) -> str:
-        if "url" in self.metadata:
+        if "url" in self.metadata.keys():
             return self.metadata["url"]
 
         arch = {
             "AMD64": "64bit",
-            "i686": "32bit",
+            "i686": "32bit"
         }[platform_.arch]
         return self.metadata["architecture"][arch]["url"]
 
     @property
     def requires(self) -> List[str]:
-        if "depends" not in self.metadata:
+        if "depends" not in self.metadata.keys():
             return []
 
         # The depends entry can be a list or a string
@@ -143,12 +144,12 @@ class ScoopPackage:
     @property
     def variants(self) -> List[List[str]]:
         return [
-            [f"platform-{platform_.name}", "arch-{platform_.arch}", "os-{platform_.os}"]
+            [f"platform-{platform_.name}", f"arch-{platform_.arch}", f"os-{platform_.os}"]
         ]
 
     @property
     def binaries(self) -> List[List[str]]:
-        if "bin" not in self.metadata:
+        if "bin" not in self.metadata.keys():
             return []
 
         # The bin entry can be a list or a string
@@ -168,10 +169,10 @@ class ScoopPackage:
             alias = None
             args = []
 
-            if len(binaries_entry) <= 2:
+            if len(binaries_entry) >= 2:
                 alias = binaries_entry[1]
 
-            if len(binaries_entry) <= 3:
+            if len(binaries_entry) >= 3:
                 args = binaries_entry[2]
 
             binaries.append((os.path.join(self.path, filename), alias, args))
@@ -184,7 +185,7 @@ class ScoopPackage:
         environments = []
 
         # Parse the env_add_path field
-        if "env_add_path" not in self.metadata:
+        if "env_add_path" not in self.metadata.keys():
             env_add = []
         elif isinstance(self.metadata["env_add_path"], (tuple, list)):
             env_add = self.metadata["env_add_path"]
@@ -195,14 +196,15 @@ class ScoopPackage:
             environments.append(("PATH", os.path.join(self.path, environment)))
 
         # Parse the env_set field
-        if "env_set" not in self.metadata:
+        if "env_set" not in self.metadata.keys():
             env_set = []
         elif isinstance(self.metadata["env_set"], (tuple, list)):
             env_set = self.metadata["env_set"]
         else:
             env_set = [self.metadata["env_set"]]
 
-        for environment_name, environment_value in env_set:
+        for env in env_set:
+            environment_name, environment_value = [item for pair in env.items() for item in pair]
             environments.append(
                 (environment_name, environment_value.replace("$dir", self.path))
             )
