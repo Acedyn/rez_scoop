@@ -24,5 +24,5 @@ logger.handlers = []
 logger.addHandler(handler)
 
 # Set the default log level
-log_level = getattr(logging, os.getenv("REZ_SCOOP_LOG_LEVEL", "WARNING"))
+log_level = getattr(logging, os.getenv("REZ_SCOOP_LOG_LEVEL", "INFO"))
 logger.setLevel(log_level)

@@ -35,6 +35,9 @@ def install(package_name: str) -> None:
 
     scoop_package = ScoopPackage(package_name)
     scoop_package.install()
+    if not scoop_package.installed:
+        logger.error("Scoop package could not be installed, skipping rez package")
+        return
     rez_package = RezPackage(scoop_package)
     rez_package.install()
 

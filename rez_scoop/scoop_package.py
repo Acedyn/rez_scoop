@@ -23,7 +23,9 @@ class ScoopPackage:
     def __init__(self, package_name: str) -> None:
         self.name = package_name
         self.installed = False
-        self.scoop_root = os.getenv("SCOOP") or f"{os.getenv('HOME')}{os.sep}scoop"
+        self.scoop_root = os.getenv("SCOOP") or os.path.join(
+            os.path.expanduser("~"), "scoop"
+        )
         self.path = os.path.join(self.scoop_root, "apps", self.name)
         self._metadata = None
 
@@ -47,6 +49,7 @@ class ScoopPackage:
 
         # Parse the output of the scoop list command
         for line in iter(p_search.stdout.readline, ""):
+            logger.debug(line)
             if f" {self.name} " in str(line):
                 logger.info("Scoop package already installed")
                 self.installed = True
@@ -67,6 +70,7 @@ class ScoopPackage:
 
         # Parse the output of the scoop install command
         for line in iter(p_install.stdout.readline, ""):
+            logger.debug(line)
             if f"Couldn't find manifest for '{self.name}'" in line:
                 logger.error("Scoop package does not exist")
                 p_install.kill()
@@ -92,7 +96,9 @@ class ScoopPackage:
         buckets = os.listdir(bucket_dir)
         metadata_json = None
         for bucket in buckets:
-            metadata_file = os.path.join(bucket_dir, bucket, "bucket", f"{self.name}.json")
+            metadata_file = os.path.join(
+                bucket_dir, bucket, "bucket", f"{self.name}.json"
+            )
             if os.path.isfile(metadata_file):
                 with open(metadata_file) as file:
                     metadata_json = json.load(file)
@@ -124,10 +130,7 @@ class ScoopPackage:
         if "url" in self.metadata.keys():
             return self.metadata["url"]
 
-        arch = {
-            "AMD64": "64bit",
-            "i686": "32bit"
-        }[platform_.arch]
+        arch = {"AMD64": "64bit", "i686": "32bit"}[platform_.arch]
         return self.metadata["architecture"][arch]["url"]
 
     @property
@@ -144,7 +147,11 @@ class ScoopPackage:
     @property
     def variants(self) -> List[List[str]]:
         return [
-            [f"platform-{platform_.name}", f"arch-{platform_.arch}", f"os-{platform_.os}"]
+            [
+                f"platform-{platform_.name}",
+                f"arch-{platform_.arch}",
+                f"os-{platform_.os}",
+            ]
         ]
 
     @property
@@ -204,7 +211,9 @@ class ScoopPackage:
             env_set = [self.metadata["env_set"]]
 
         for env in env_set:
-            environment_name, environment_value = [item for pair in env.items() for item in pair]
+            environment_name, environment_value = [
+                item for pair in env.items() for item in pair
+            ]
             environments.append(
                 (environment_name, environment_value.replace("$dir", self.path))
             )
