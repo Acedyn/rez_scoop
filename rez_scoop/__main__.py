@@ -1,4 +1,5 @@
 import argparse
+import sys
 
 from rez_scoop.scoop_package import ScoopPackage
 from rez_scoop.rez_package import RezPackage
@@ -62,4 +63,4 @@ if __name__ == "__main__":
     # Get the passed arguments
     arguments = get_arguments()
     # Call the appropiate function from the arguments
-    locals()[arguments.action](arguments.package)
+    getattr(sys.modules[__name__], arguments.action[0])(arguments.package[0])
